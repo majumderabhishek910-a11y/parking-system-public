@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Parking Demo - Bhubaneswar</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+        }
+
+        .map-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #6c757d, #545b62);
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .slot-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+
+        .slot-item.occupied {
+            border-left-color: #dc3545;
+        }
+
+        .slot-item h4 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .slot-item p {
+            color: #666;
+            font-size: 0.9rem;
+            margin: 0.25rem 0;
+        }
+
+        .junction-item {
+            background: #fff3cd;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .junction-item h4 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .signal-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #6c757d;
+            position: relative;
+        }
+
+        .signal-item.green {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .signal-item.yellow {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+
+        .signal-item.red {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .signal-item h4 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .signal-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+            border: 2px solid #333;
+        }
+
+        .signal-light.green {
+            background: #28a745;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        }
+
+        .signal-light.yellow {
+            background: #ffc107;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+        }
+
+        .signal-light.red {
+            background: #dc3545;
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+
+        .signal-timer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .signal-details {
+            font-size: 0.9rem;
+            color: #666;
+            margin: 0.25rem 0;
+        }
+
+        .ai-insights-signal {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .ai-insights-signal ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .ai-insights-signal li {
+            color: #2e7d32;
+            margin: 0.1rem 0;
+        }
+
+        .efficiency-score {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .ai-insights {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .ai-insights h4 {
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+
+        .ai-insights ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ai-insights li {
+            color: #1976d2;
+            margin: 0.25rem 0;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        .notification.info {
+            background: #17a2b8;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 0 0.5rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            #map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Simple Parking Demo - Bhubaneswar</h1>
+        <p>Find FREE roadside parking slots near your location</p>
+    </div>
+
+    <div class="container">
+        <div class="map-section">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="locationInput">📍 Enter your location:</label>
+                    <input type="text" id="locationInput" placeholder="e.g., Airport, IT Park, Janpath...">
+                </div>
+                <div>
+                    <button id="setLocationBtn" class="btn">Set Location</button>
+                    <button id="getCurrentLocationBtn" class="btn success">
+                        <i class="fas fa-map-marker-alt"></i> Use GPS
+                    </button>
+                </div>
+            </div>
+            
+            <div id="map"></div>
+            
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Enter your location to get started</span>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h2>📍 Parking Slots</h2>
+            <div id="slotList"></div>
+            
+            <h2>🚦 Traffic Junctions</h2>
+            <div id="junctionList"></div>
+            
+            <h2>🤖 AI Insights</h2>
+            <div id="aiInsights"></div>
+            
+            <h2>🚦 AI Traffic Signals</h2>
+            <div id="trafficSignals"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        class SimpleParkingDemo {
+            constructor() {
+                this.map = null;
+                this.userLocation = null;
+                this.parkingMarkers = [];
+                this.junctionMarkers = [];
+                this.signalMarkers = [];
+                this.userMarker = null;
+                
+                // Bhubaneswar bounds
+                this.bounds = {
+                    southwest: [20.15, 85.70],
+                    northeast: [20.45, 85.95]
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.initMap();
+                this.bindEvents();
+            }
+
+            initMap() {
+                // Initialize map centered on Bhubaneswar
+                this.map = L.map('map').setView([20.2961, 85.8245], 13);
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(this.map);
+                
+                // Restrict to Bhubaneswar area
+                this.map.setMaxBounds([
+                    [this.bounds.southwest[0], this.bounds.southwest[1]],
+                    [this.bounds.northeast[0], this.bounds.northeast[1]]
+                ]);
+            }
+
+            bindEvents() {
+                // Set location button
+                document.getElementById('setLocationBtn').addEventListener('click', () => {
+                    this.setLocationFromInput();
+                });
+
+                // GPS button
+                document.getElementById('getCurrentLocationBtn').addEventListener('click', () => {
+                    this.getCurrentLocation();
+                });
+
+                // Enter key on input
+                document.getElementById('locationInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.setLocationFromInput();
+                    }
+                });
+            }
+
+            setLocationFromInput() {
+                const input = document.getElementById('locationInput').value.trim();
+                if (!input) {
+                    this.showNotification('Please enter a location', 'error');
+                    return;
+                }
+
+                // Simple location mapping
+                const locations = {
+                    'airport': [20.2444, 85.8178],
+                    'it park': [20.3500, 85.8000],
+                    'janpath': [20.2961, 85.8245],
+                    'railway station': [20.2961, 85.8245],
+                    'master canteen': [20.2955, 85.8240],
+                    'hospital': [20.3200, 85.8200]
+                };
+
+                const coords = locations[input.toLowerCase()];
+                if (coords) {
+                    this.userLocation = { lat: coords[0], lng: coords[1] };
+                    this.map.setView(coords, 15);
+                    this.updateUserLocationDisplay();
+                    this.fetchData();
+                    this.showNotification(`Location set to ${input}`, 'success');
+                } else {
+                    this.showNotification('Location not found. Try: Airport, IT Park, Janpath', 'error');
+                }
+            }
+
+            getCurrentLocation() {
+                if (!navigator.geolocation) {
+                    this.showNotification('GPS not supported', 'error');
+                    return;
+                }
+
+                document.getElementById('getCurrentLocationBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting GPS...';
+                document.getElementById('getCurrentLocationBtn').disabled = true;
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        this.userLocation = { lat, lng };
+                        this.map.setView([lat, lng], 15);
+                        this.updateUserLocationDisplay();
+                        this.fetchData();
+                        this.showNotification('GPS location found!', 'success');
+                        
+                        this.resetGPSButton();
+                    },
+                    (error) => {
+                        this.showNotification('GPS failed. Try manual location.', 'error');
+                        this.resetGPSButton();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    }
+                );
+            }
+
+            resetGPSButton() {
+                document.getElementById('getCurrentLocationBtn').innerHTML = '<i class="fas fa-map-marker-alt"></i> Use GPS';
+                document.getElementById('getCurrentLocationBtn').disabled = false;
+            }
+
+            updateUserLocationDisplay() {
+                if (!this.userLocation) return;
+
+                // Remove existing user marker
+                if (this.userMarker) {
+                    this.map.removeLayer(this.userMarker);
+                }
+
+                // Create user location marker
+                this.userMarker = L.circleMarker([this.userLocation.lat, this.userLocation.lng], {
+                    radius: 10,
+                    fillColor: '#007bff',
+                    color: '#ffffff',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(this.map);
+
+                // Add popup
+                this.userMarker.bindPopup(`
+                    <div style="text-align: center;">
+                        <h4 style="margin: 0 0 5px 0; color: #007bff;">📍 Your Location</h4>
+                        <p style="margin: 0; font-size: 0.9rem;">
+                            ${this.userLocation.lat.toFixed(4)}, ${this.userLocation.lng.toFixed(4)}
+                        </p>
+                    </div>
+                `);
+            }
+
+            async fetchData() {
+                if (!this.userLocation) return;
+
+                try {
+                    // Fetch parking slots
+                    const parkingResponse = await fetch(`/api/street-parking?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`);
+                    const parkingData = await parkingResponse.json();
+                    this.displayParkingSlots(parkingData);
+
+                    // Fetch traffic junctions
+                    const junctionResponse = await fetch(`/api/traffic-junctions?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`);
+                    const junctionData = await junctionResponse.json();
+                    this.displayTrafficJunctions(junctionData.junctions);
+
+                    // Fetch AI suggestions
+                    const aiResponse = await fetch(`/api/ai-suggestions?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`);
+                    const aiData = await aiResponse.json();
+                    this.displayAIInsights(aiData.insights);
+
+                    // Fetch AI traffic signals
+                    const signalResponse = await fetch(`/api/ai-traffic-signals?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`);
+                    const signalData = await signalResponse.json();
+                    this.displayTrafficSignals(signalData.signals);
+
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    this.showNotification('Error loading data', 'error');
+                }
+            }
+
+            displayParkingSlots(slots) {
+                // Clear existing markers
+                this.parkingMarkers.forEach(marker => this.map.removeLayer(marker));
+                this.parkingMarkers = [];
+
+                // Update slot list
+                const slotList = document.getElementById('slotList');
+                slotList.innerHTML = '';
+
+                Object.entries(slots).forEach(([name, slot]) => {
+                    const [lat, lng] = slot.location;
+                    
+                    // Create marker
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: 6,
+                        fillColor: slot.status === 'available' ? '#28a745' : '#dc3545',
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(this.map);
+
+                    marker.bindPopup(`
+                        <div style="text-align: center;">
+                            <h4 style="margin: 0 0 5px 0;">🅿️ ${name}</h4>
+                            <p style="margin: 0; color: ${slot.status === 'available' ? '#28a745' : '#dc3545'}; font-weight: bold;">
+                                ${slot.status === 'available' ? '✅ Available' : '❌ Occupied'}
+                            </p>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
+                                📍 ${slot.distance_km}km away
+                            </p>
+                        </div>
+                    `);
+
+                    this.parkingMarkers.push(marker);
+
+                    // Add to list
+                    const slotItem = document.createElement('div');
+                    slotItem.className = `slot-item ${slot.status === 'occupied' ? 'occupied' : ''}`;
+                    slotItem.innerHTML = `
+                        <h4>🅿️ ${name}</h4>
+                        <p><strong>Status:</strong> ${slot.status === 'available' ? '✅ Available' : '❌ Occupied'}</p>
+                        <p><strong>Distance:</strong> ${slot.distance_km}km</p>
+                        <p><strong>Area:</strong> ${slot.area}</p>
+                    `;
+                    slotList.appendChild(slotItem);
+                });
+
+                document.getElementById('statusText').textContent = `Found ${Object.keys(slots).length} parking slots nearby`;
+            }
+
+            displayTrafficJunctions(junctions) {
+                // Clear existing markers
+                this.junctionMarkers.forEach(marker => this.map.removeLayer(marker));
+                this.junctionMarkers = [];
+
+                // Update junction list
+                const junctionList = document.getElementById('junctionList');
+                junctionList.innerHTML = '';
+
+                Object.entries(junctions).forEach(([name, junction]) => {
+                    const [lat, lng] = junction.location;
+                    
+                    // Create marker
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: 8,
+                        fillColor: '#ffc107',
+                        color: '#ffffff',
+                        weight: 3,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(this.map);
+
+                    marker.bindPopup(`
+                        <div style="text-align: center;">
+                            <h4 style="margin: 0 0 5px 0;">🚦 ${junction.name}</h4>
+                            <p style="margin: 0;"><strong>Distance:</strong> ${junction.distance_km}km ${junction.direction}</p>
+                            <p style="margin: 0;"><strong>Traffic:</strong> ${junction.traffic_level}</p>
+                            <p style="margin: 0;"><strong>Parking Pressure:</strong> ${junction.parking_pressure}</p>
+                        </div>
+                    `);
+
+                    this.junctionMarkers.push(marker);
+
+                    // Add to list
+                    const junctionItem = document.createElement('div');
+                    junctionItem.className = 'junction-item';
+                    junctionItem.innerHTML = `
+                        <h4>🚦 ${junction.name}</h4>
+                        <p><strong>Distance:</strong> ${junction.distance_km}km ${junction.direction}</p>
+                        <p><strong>Traffic Level:</strong> ${junction.traffic_level}</p>
+                        <p><strong>Parking Pressure:</strong> ${junction.parking_pressure}</p>
+                        <p><strong>Type:</strong> ${junction.type}</p>
+                    `;
+                    junctionList.appendChild(junctionItem);
+                });
+            }
+
+            displayAIInsights(insights) {
+                const aiInsights = document.getElementById('aiInsights');
+                aiInsights.innerHTML = `
+                    <div class="ai-insights">
+                        <h4>🤖 AI Recommendations</h4>
+                        <ul>
+                            ${insights.map(insight => `<li>${insight}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            displayTrafficSignals(signals) {
+                // Clear existing signal markers
+                this.signalMarkers.forEach(marker => this.map.removeLayer(marker));
+                this.signalMarkers = [];
+
+                // Update signal list
+                const signalList = document.getElementById('trafficSignals');
+                signalList.innerHTML = '';
+
+                Object.entries(signals).forEach(([name, signal]) => {
+                    const [lat, lng] = signal.location;
+                    
+                    // Create signal marker
+                    const signalIcon = L.divIcon({
+                        html: `<div style="background: ${signal.current_state === 'green' ? '#28a745' : signal.current_state === 'yellow' ? '#ffc107' : '#dc3545'}; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); animation: pulse 2s infinite;">🚦</div>`,
+                        className: 'signal-marker',
+                        iconSize: [25, 25],
+                        iconAnchor: [12, 12]
+                    });
+
+                    const marker = L.marker([lat, lng], { icon: signalIcon })
+                        .bindPopup(`
+                            <div style="text-align: center; min-width: 200px;">
+                                <h4 style="margin: 0 0 10px 0;">🚦 ${signal.name}</h4>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Current State:</strong> 
+                                    <span style="color: ${signal.current_state === 'green' ? '#28a745' : signal.current_state === 'yellow' ? '#ffc107' : '#dc3545'}; font-weight: bold; text-transform: uppercase;">
+                                        ${signal.current_state}
+                                    </span>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Time Remaining:</strong> ${signal.time_remaining}s
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Next State:</strong> ${signal.next_state}
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Efficiency Score:</strong> ${signal.efficiency_score}%
+                                </div>
+                                <div>
+                                    <strong>AI Insights:</strong><br>
+                                    ${signal.ai_insights.map(insight => `• ${insight}`).join('<br>')}
+                                </div>
+                            </div>
+                        `)
+                        .addTo(this.map);
+
+                    this.signalMarkers.push(marker);
+
+                    // Add to list
+                    const signalItem = document.createElement('div');
+                    signalItem.className = `signal-item ${signal.current_state}`;
+                    signalItem.innerHTML = `
+                        <div class="signal-timer">${signal.time_remaining}s</div>
+                        <h4>
+                            <span class="signal-light ${signal.current_state}"></span>
+                            🚦 ${signal.name}
+                            <span class="efficiency-score">${signal.efficiency_score}%</span>
+                        </h4>
+                        <div class="signal-details">
+                            <p><strong>Current State:</strong> ${signal.current_state.toUpperCase()}</p>
+                            <p><strong>Next State:</strong> ${signal.next_state.toUpperCase()}</p>
+                            <p><strong>Distance:</strong> ${signal.distance_km}km ${signal.direction}</p>
+                            <p><strong>Cycle Time:</strong> ${signal.total_cycle}s (G:${signal.green_time}s Y:${signal.yellow_time}s R:${signal.red_time}s)</p>
+                            <p><strong>Traffic Multiplier:</strong> ${signal.traffic_multiplier}x</p>
+                            <p><strong>Event:</strong> ${signal.traffic_event.replace('_', ' ')}</p>
+                        </div>
+                        <div class="ai-insights-signal">
+                            <strong>🤖 AI Insights:</strong>
+                            <ul>
+                                ${signal.ai_insights.map(insight => `<li>${insight}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    signalList.appendChild(signalItem);
+                });
+
+                // Auto-refresh signals every 5 seconds
+                if (this.signalRefreshInterval) {
+                    clearInterval(this.signalRefreshInterval);
+                }
+                
+                this.signalRefreshInterval = setInterval(() => {
+                    if (this.userLocation) {
+                        this.fetchTrafficSignals();
+                    }
+                }, 5000);
+            }
+
+            async fetchTrafficSignals() {
+                try {
+                    const signalResponse = await fetch(`/api/ai-traffic-signals?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`);
+                    const signalData = await signalResponse.json();
+                    this.displayTrafficSignals(signalData.signals);
+                } catch (error) {
+                    console.error('Error fetching traffic signals:', error);
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+
+        // Initialize the demo when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SimpleParkingDemo();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhubaneswar Interactive Parking Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    
+    <!-- Custom Styles -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .location-input {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .location-input input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 200px;
+        }
+
+        .location-input button {
+            padding: 0.5rem 1rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .location-input button:hover {
+            background: #0056b3;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .status-dot.updating {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.error {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        #map {
+            height: calc(100vh - 140px);
+            width: 100%;
+            z-index: 1;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 250px;
+            max-width: 300px;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        .route-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            z-index: 1000;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .route-panel h3 {
+            margin: 0 0 15px 0;
+            color: #28a745;
+            font-size: 1.2em;
+        }
+        
+        .route-info-item {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .route-info-item .label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .route-info-item .value {
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        .route-instructions {
+            margin: 15px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        
+        .route-instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .route-instructions li {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+
+        .info-item .label {
+            color: #666;
+        }
+
+        .info-item .value {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .legend h4 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.9);
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 2000;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .nav-buttons {
+            margin-top: 10px;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 0 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-group {
+                justify-content: space-between;
+            }
+            
+            .info-panel {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin: 1rem;
+                max-width: none;
+            }
+            
+            .legend {
+                position: relative;
+                bottom: auto;
+                left: auto;
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Bhubaneswar Interactive Parking Map</h1>
+        <p>Real-time parking availability across Bhubaneswar city with detailed street coverage</p>
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                <a href="/odisha-map" class="nav-btn"><i class="fas fa-map"></i> Bhubaneswar Map</a>
+                <a href="/street-parking-demo" class="nav-btn"><i class="fas fa-road"></i> Street Parking Demo</a>
+            </div>
+    </div>
+
+    <div class="controls">
+        <div class="location-input">
+            <label for="locationInput">Enter your location:</label>
+            <input type="text" id="locationInput" placeholder="e.g., Airport, Railway Station, IT Park, Market..." />
+            <button id="setLocationBtn">Set Location</button>
+        </div>
+        
+        <div class="control-group">
+            <label for="updateInterval">Update Interval:</label>
+            <select id="updateInterval">
+                <option value="5000">5 seconds</option>
+                <option value="10000" selected>10 seconds</option>
+                <option value="15000">15 seconds</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <button id="toggleUpdates" class="btn">Pause Updates</button>
+        </div>
+        
+        <div class="control-group">
+            <button id="centerMap" class="btn">Center on Bhubaneswar</button>
+        </div>
+        
+        <div class="control-group">
+            <button id="toggleTraffic" class="btn">Toggle Traffic</button>
+        </div>
+        
+        <div class="control-group">
+            <button id="clearRoute" class="btn">Clear Route</button>
+        </div>
+        
+        <div class="control-group">
+            <button id="findNearestBtn" class="btn btn-primary">
+                <i class="fas fa-search-location"></i> Find Nearest Parking
+            </button>
+        </div>
+        
+        <div class="control-group">
+            <button id="getRouteBtn" class="btn btn-success">
+                <i class="fas fa-route"></i> Get Route
+            </button>
+        </div>
+        
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Enter your location to get started</span>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info-panel" id="infoPanel">
+        <h3>📍 Bhubaneswar System Status</h3>
+        <div class="info-item">
+            <span class="label">Your Location:</span>
+            <span class="value" id="userLocation">Getting location...</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Parking Lots:</span>
+            <span class="value" id="parkingCount">0</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Available:</span>
+            <span class="value" id="availableCount">0</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Traffic Layer:</span>
+            <span class="value" id="trafficStatus">Active</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Last Update:</span>
+            <span class="value" id="lastUpdate">Never</span>
+        </div>
+    </div>
+    
+    <div class="route-panel" id="routePanel" style="display: none;">
+        <h3><i class="fas fa-route"></i> Route to Nearest Parking</h3>
+        <div id="routeInfo">
+            <p>Click "Get Route" to find directions to the nearest available parking</p>
+        </div>
+        <button id="closeRouteBtn" class="btn btn-secondary">Close Route</button>
+    </div>
+
+    <div class="legend">
+        <h4>Map Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #28a745;"></div>
+            <span>Available Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #dc3545;"></div>
+            <span>Occupied Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffc107;"></div>
+            <span>Reserved Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #007bff;"></div>
+            <span>Your Location</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #6c757d;"></div>
+            <span>Traffic (Congested)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #17a2b8;"></div>
+            <span>Traffic (Moderate)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #28a745;"></div>
+            <span>Traffic (Free Flow)</span>
+        </div>
+    </div>
+
+    <div class="loading" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading Odisha parking data...</p>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <script>
+        /**
+         * Odisha Interactive Parking Map
+         * Features: Real-time parking markers, traffic visualization, geographic bounds restriction
+         * Coverage: Complete state of Odisha, India
+         */
+
+        class OdishaParkingMap {
+            constructor() {
+                this.map = null;
+                this.userLocation = null;
+                this.parkingMarkers = new Map();
+                this.trafficLayer = null;
+                this.routeLayer = null;
+                this.updateInterval = 10000; // 10 seconds default
+                this.updateTimer = null;
+                this.isUpdating = true;
+                this.trafficEnabled = true;
+                this.apiBaseUrl = '/api'; // Your backend API base URL
+                
+                // Bhubaneswar city bounds - detailed street-level coverage
+                this.bhubaneswarBounds = {
+                    southwest: [20.15, 85.70],
+                    northeast: [20.45, 85.95],
+                    center: [20.2961, 85.8245] // Center on Bhubaneswar city
+                };
+                
+                // Bhubaneswar area coordinates for location input
+                this.areaCoordinates = {
+                    'bhubaneswar': [20.2961, 85.8245],
+                    'airport': [20.2444, 85.8178],
+                    'railway station': [20.2961, 85.8245],
+                    'it park': [20.3500, 85.8000],
+                    'market': [20.2800, 85.8500],
+                    'university': [20.3200, 85.8200],
+                    'hospital': [20.3100, 85.8100],
+                    'mall': [20.2900, 85.8300],
+                    'temple': [20.2700, 85.8400],
+                    'park': [20.3000, 85.8500]
+                };
+                
+                // Initialize the map
+                this.initMap();
+                this.initControls();
+                this.getUserLocation();
+                this.startParkingUpdates();
+            }
+
+            /**
+             * Initialize the Leaflet map with Bhubaneswar city geographic restrictions
+             */
+            initMap() {
+                // Create map centered on Bhubaneswar city
+                this.map = L.map('map', {
+                    center: this.bhubaneswarBounds.center,
+                    zoom: 13,
+                    maxBounds: [
+                        this.bhubaneswarBounds.southwest,
+                        this.bhubaneswarBounds.northeast
+                    ],
+                    maxBoundsViscosity: 1.0, // Strict bounds enforcement
+                    zoomSnap: 0.5,
+                    zoomDelta: 0.5
+                });
+                
+                // Add OpenStreetMap tiles with high detail for streets
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors | Bhubaneswar City Coverage',
+                    maxZoom: 18, // High detail for street level
+                    minZoom: 11
+                }).addTo(this.map);
+
+                // Add traffic layer
+                this.addTrafficLayer();
+                
+                console.log('🗺️ Bhubaneswar City Interactive Map initialized with detailed street coverage');
+            }
+
+            /**
+             * Add real-time traffic visualization layer for Odisha
+             */
+            addTrafficLayer() {
+                // Create traffic layer group
+                this.trafficLayer = L.layerGroup();
+                
+                // Generate traffic data for major roads in Odisha
+                const trafficData = this.generateOdishaTrafficData();
+                
+                trafficData.forEach(road => {
+                    const polyline = L.polyline(road.coordinates, {
+                        color: road.color,
+                        weight: road.weight,
+                        opacity: 0.7,
+                        dashArray: road.dashArray || null
+                    }).bindPopup(`Traffic: ${road.condition}<br>Route: ${road.name}`);
+                    
+                    this.trafficLayer.addLayer(polyline);
+                });
+                
+                this.trafficLayer.addTo(this.map);
+                console.log('🚦 Odisha traffic layer added');
+            }
+
+            /**
+             * Generate simulated traffic data for major roads in Odisha
+             */
+            generateOdishaTrafficData() {
+                const roads = [
+                    // NH-16 (Coastal Highway) - Bhubaneswar to Puri
+                    {
+                        name: 'NH-16 (Coastal)',
+                        coordinates: [
+                            [20.2961, 85.8245], // Bhubaneswar
+                            [20.1, 85.8], [19.9, 85.8], [19.8135, 85.8312] // Puri
+                        ],
+                        condition: 'Moderate',
+                        color: '#ffc107',
+                        weight: 6
+                    },
+                    // NH-55 - Bhubaneswar to Sambalpur
+                    {
+                        name: 'NH-55',
+                        coordinates: [
+                            [20.2961, 85.8245], // Bhubaneswar
+                            [20.5, 85.5], [20.8, 85.0], [21.0, 84.5], [21.4669, 83.9812] // Sambalpur
+                        ],
+                        condition: 'Free Flow',
+                        color: '#28a745',
+                        weight: 5
+                    },
+                    // NH-6 - Sambalpur to Rourkela
+                    {
+                        name: 'NH-6',
+                        coordinates: [
+                            [21.4669, 83.9812], // Sambalpur
+                            [21.8, 84.0], [22.0, 84.2], [22.2604, 84.8536] // Rourkela
+                        ],
+                        condition: 'Congested',
+                        color: '#dc3545',
+                        weight: 7
+                    },
+                    // State Highway - Cuttack to Berhampur
+                    {
+                        name: 'SH-1',
+                        coordinates: [
+                            [20.4625, 85.8828], // Cuttack
+                            [20.2, 85.5], [19.8, 85.2], [19.3142, 84.7941] // Berhampur
+                        ],
+                        condition: 'Moderate',
+                        color: '#ffc107',
+                        weight: 4
+                    },
+                    // City roads in Bhubaneswar
+                    {
+                        name: 'Bhubaneswar City Roads',
+                        coordinates: [
+                            [20.2961, 85.8245], [20.3, 85.83], [20.28, 85.85], [20.25, 85.82]
+                        ],
+                        condition: 'Congested',
+                        color: '#dc3545',
+                        weight: 3,
+                        dashArray: '5, 5'
+                    }
+                ];
+                
+                return roads;
+            }
+
+            /**
+             * Initialize control event listeners
+             */
+            initControls() {
+                // Location input functionality
+                document.getElementById('setLocationBtn').addEventListener('click', () => {
+                    this.setLocationFromInput();
+                });
+
+                // Allow Enter key to set location
+                document.getElementById('locationInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.setLocationFromInput();
+                    }
+                });
+
+                // Update interval control
+                document.getElementById('updateInterval').addEventListener('change', (e) => {
+                    this.updateInterval = parseInt(e.target.value);
+                    if (this.isUpdating) {
+                        this.startParkingUpdates();
+                    }
+                });
+
+                // Toggle updates button
+                document.getElementById('toggleUpdates').addEventListener('click', () => {
+                    this.toggleUpdates();
+                });
+
+                // Center map button
+                document.getElementById('centerMap').addEventListener('click', () => {
+                    this.centerOnBhubaneswar();
+                });
+
+                // Toggle traffic button
+                document.getElementById('toggleTraffic').addEventListener('click', () => {
+                    this.toggleTraffic();
+                });
+
+                // Clear route button
+                document.getElementById('clearRoute').addEventListener('click', () => {
+                    this.clearNavigationRoute();
+                    document.getElementById('statusText').textContent = 'Navigation route cleared';
+                });
+            }
+
+            /**
+             * Get user's current location using HTML5 geolocation
+             */
+            getUserLocation() {
+                if (!navigator.geolocation) {
+                    this.showError('Geolocation is not supported by this browser');
+                    this.setUserLocation(this.odishaBounds.center); // Fallback to Odisha center
+                    return;
+                }
+
+                this.updateStatus('Getting location...', 'updating');
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        // Check if user is within Odisha bounds
+                        if (this.isWithinOdishaBounds([lat, lng])) {
+                            this.setUserLocation([lat, lng]);
+                            this.updateStatus('Location found', 'connected');
+                        } else {
+                            this.showError('You are outside Odisha. Centering on Odisha.');
+                            this.setUserLocation(this.odishaBounds.center);
+                            this.updateStatus('Outside Odisha', 'error');
+                        }
+                    },
+                    (error) => {
+                        console.warn('Geolocation error:', error);
+                        this.showError('Unable to get your location. Centering on Odisha.');
+                        this.setUserLocation(this.odishaBounds.center);
+                        this.updateStatus('Using Odisha center', 'error');
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 300000 // 5 minutes
+                    }
+                );
+            }
+
+            /**
+             * Check if coordinates are within Odisha bounds
+             */
+            isWithinOdishaBounds(coords) {
+                const [lat, lng] = coords;
+                return lat >= this.odishaBounds.southwest[0] && 
+                       lat <= this.odishaBounds.northeast[0] &&
+                       lng >= this.odishaBounds.southwest[1] && 
+                       lng <= this.odishaBounds.northeast[1];
+            }
+
+            /**
+             * Set user location and add marker
+             */
+            setUserLocation(coords) {
+                this.userLocation = coords;
+                
+                // Remove existing user marker
+                if (this.userMarker) {
+                    this.map.removeLayer(this.userMarker);
+                }
+
+                // Add user location marker
+                this.userMarker = L.marker(coords, {
+                    icon: L.divIcon({
+                        className: 'user-location-marker',
+                        html: '<div style="background: #007bff; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(this.map);
+
+                // Update info panel
+                document.getElementById('userLocation').textContent = 
+                    `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+
+                console.log('📍 User location set:', coords);
+            }
+
+            /**
+             * Center map on Odisha
+             */
+            centerOnBhubaneswar() {
+                this.map.setView(this.bhubaneswarBounds.center, 13);
+                console.log('🎯 Map centered on Bhubaneswar city');
+            }
+
+            /**
+             * Set location from user input
+             */
+            setLocationFromInput() {
+                const input = document.getElementById('locationInput');
+                const location = input.value.toLowerCase().trim();
+                
+                if (this.areaCoordinates[location]) {
+                    const coords = this.areaCoordinates[location];
+                    this.userLocation = { lat: coords[0], lng: coords[1] };
+                    
+                    // Update map view to the selected location with high zoom for street detail
+                    this.map.setView(coords, 15);
+                    
+                    // Update user location display
+                    this.updateUserLocationDisplay();
+                    
+                    // Update status
+                    document.getElementById('statusText').textContent = `Location set to: ${location.charAt(0).toUpperCase() + location.slice(1)}`;
+                    
+                    console.log(`📍 Location set to: ${location} (${coords[0]}, ${coords[1]})`);
+                } else {
+                    alert('Please enter a valid area name. Available areas: Bhubaneswar, Airport, Railway Station, IT Park, Market, University, Hospital, Mall, Temple, Park');
+                }
+            }
+
+            /**
+             * Update user location display
+             */
+            updateUserLocationDisplay() {
+                if (this.userLocation) {
+                    document.getElementById('userLocation').textContent = 
+                        `${this.userLocation.lat.toFixed(4)}, ${this.userLocation.lng.toFixed(4)}`;
+                    
+                    // Add or update blue dot marker for user location
+                    this.addUserLocationMarker();
+                } else {
+                    document.getElementById('userLocation').textContent = 'Location not available';
+                }
+            }
+
+            /**
+             * Add blue dot marker for user's current location
+             */
+            addUserLocationMarker() {
+                if (!this.userLocation) return;
+
+                // Remove existing user marker
+                if (this.userMarker) {
+                    this.map.removeLayer(this.userMarker);
+                }
+
+                // Create blue dot marker for user location
+                this.userMarker = L.circleMarker([this.userLocation.lat, this.userLocation.lng], {
+                    radius: 8,
+                    fillColor: '#007bff',
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(this.map);
+
+                // Add popup with user location info
+                this.userMarker.bindPopup(`
+                    <div style="text-align: center;">
+                        <h4>📍 Your Location</h4>
+                        <p><strong>Coordinates:</strong><br>
+                        ${this.userLocation.lat.toFixed(6)}, ${this.userLocation.lng.toFixed(6)}</p>
+                        <p><em>Blue dot shows your current position</em></p>
+                    </div>
+                `);
+
+                console.log('📍 User location marker added');
+            }
+
+            /**
+             * Draw navigation route from user location to parking spot
+             */
+            drawNavigationRoute(parkingLocation, parkingName) {
+                if (!this.userLocation) {
+                    alert('Please set your location first to get navigation directions.');
+                    return;
+                }
+
+                // Remove existing route
+                if (this.routeLayer) {
+                    this.map.removeLayer(this.routeLayer);
+                }
+
+                // Create route line
+                const routeLine = L.polyline([
+                    [this.userLocation.lat, this.userLocation.lng],
+                    [parkingLocation.lat, parkingLocation.lng]
+                ], {
+                    color: '#ff6b35',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 10'
+                }).addTo(this.map);
+
+                // Add route markers
+                const startMarker = L.marker([this.userLocation.lat, this.userLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'route-marker start-marker',
+                        html: '<div style="background: #007bff; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-weight: bold;">S</div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(this.map);
+
+                const endMarker = L.marker([parkingLocation.lat, parkingLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'route-marker end-marker',
+                        html: '<div style="background: #28a745; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-weight: bold;">E</div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(this.map);
+
+                // Create route layer group
+                this.routeLayer = L.layerGroup([routeLine, startMarker, endMarker]);
+
+                // Add popups
+                startMarker.bindPopup(`
+                    <div style="text-align: center;">
+                        <h4>🚗 Start Point</h4>
+                        <p><strong>Your Location</strong></p>
+                        <p>${this.userLocation.lat.toFixed(6)}, ${this.userLocation.lng.toFixed(6)}</p>
+                    </div>
+                `);
+
+                endMarker.bindPopup(`
+                    <div style="text-align: center;">
+                        <h4>🅿️ Destination</h4>
+                        <p><strong>${parkingName}</strong></p>
+                        <p>${parkingLocation.lat.toFixed(6)}, ${parkingLocation.lng.toFixed(6)}</p>
+                    </div>
+                `);
+
+                // Fit map to show both locations
+                const group = new L.featureGroup([this.userMarker, this.routeLayer]);
+                this.map.fitBounds(group.getBounds().pad(0.1));
+
+                console.log(`🗺️ Navigation route drawn to ${parkingName}`);
+            }
+
+            /**
+             * Clear navigation route
+             */
+            clearNavigationRoute() {
+                if (this.routeLayer) {
+                    this.map.removeLayer(this.routeLayer);
+                    this.routeLayer = null;
+                    console.log('🗺️ Navigation route cleared');
+                }
+            }
+
+            /**
+             * Toggle traffic layer visibility
+             */
+            toggleTraffic() {
+                this.trafficEnabled = !this.trafficEnabled;
+                const button = document.getElementById('toggleTraffic');
+                
+                if (this.trafficEnabled) {
+                    this.trafficLayer.addTo(this.map);
+                    button.textContent = 'Hide Traffic';
+                    document.getElementById('trafficStatus').textContent = 'Active';
+                } else {
+                    this.map.removeLayer(this.trafficLayer);
+                    button.textContent = 'Show Traffic';
+                    document.getElementById('trafficStatus').textContent = 'Hidden';
+                }
+                
+                console.log('🚦 Traffic layer toggled:', this.trafficEnabled);
+            }
+
+            /**
+             * Start automatic parking data updates
+             */
+            startParkingUpdates() {
+                if (this.updateTimer) {
+                    clearInterval(this.updateTimer);
+                }
+
+                this.updateTimer = setInterval(() => {
+                    if (this.isUpdating) {
+                        this.updateParkingData();
+                    }
+                }, this.updateInterval);
+
+                // Initial update
+                this.updateParkingData();
+                console.log(`🔄 Started Odisha parking updates every ${this.updateInterval/1000} seconds`);
+            }
+
+            /**
+             * Toggle automatic updates on/off
+             */
+            toggleUpdates() {
+                this.isUpdating = !this.isUpdating;
+                const button = document.getElementById('toggleUpdates');
+                
+                if (this.isUpdating) {
+                    button.textContent = 'Pause Updates';
+                    button.classList.remove('btn-secondary');
+                    button.classList.add('btn');
+                    this.startParkingUpdates();
+                    this.updateStatus('Updates active', 'connected');
+                } else {
+                    button.textContent = 'Resume Updates';
+                    button.classList.remove('btn');
+                    button.classList.add('btn-secondary');
+                    if (this.updateTimer) {
+                        clearInterval(this.updateTimer);
+                    }
+                    this.updateStatus('Updates paused', 'error');
+                }
+            }
+
+            /**
+             * Update parking data from API or load demo data
+             */
+            async updateParkingData() {
+                try {
+                    this.updateStatus('Updating...', 'updating');
+                    this.showLoading(true);
+
+                    // Try to fetch from API first
+                    const response = await fetch(`${this.apiBaseUrl}/local-parking`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const parkingData = await response.json();
+                    this.updateParkingMarkers(parkingData);
+                    this.updateStatus('Local data loaded', 'connected');
+                    this.showLoading(false);
+
+                } catch (error) {
+                    console.error('Error fetching parking data:', error);
+                    this.updateStatus('Using fallback data', 'error');
+                    this.showLoading(false);
+                    
+                    // Fallback to minimal demo data
+                    this.loadMinimalDemoData();
+                }
+            }
+
+            /**
+             * Load local parking data for focused area
+             */
+            async loadLocalParkingData() {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/local-parking`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const parkingData = await response.json();
+                    this.renderParkingMarkers(parkingData);
+                    this.updateStatus('Local parking data loaded', 'success');
+                    console.log('📍 Local parking data loaded successfully');
+                } catch (error) {
+                    console.error('Error loading local parking data:', error);
+                    // Fallback to minimal demo data
+                    this.loadMinimalDemoData();
+                }
+            }
+
+            /**
+             * Load minimal demo data as fallback
+             */
+            loadMinimalDemoData() {
+                const odishaParkingData = {
+                    "Bhubaneswar Central": {
+                        "total_slots": 50,
+                        "available_slots": 32,
+                        "occupied_slots": 18,
+                        "occupancy_rate": 0.36,
+                        "location": [20.2961, 85.8245],
+                        "zone": "A",
+                        "city": "Bhubaneswar"
+                    },
+                    "Cuttack Station": {
+                        "total_slots": 30,
+                        "available_slots": 8,
+                        "occupied_slots": 22,
+                        "occupancy_rate": 0.73,
+                        "location": [20.4625, 85.8828],
+                        "zone": "B",
+                        "city": "Cuttack"
+                    },
+                    "Sambalpur Mall": {
+                        "total_slots": 40,
+                        "available_slots": 25,
+                        "occupied_slots": 15,
+                        "occupancy_rate": 0.375,
+                        "location": [21.4669, 83.9812],
+                        "zone": "C",
+                        "city": "Sambalpur"
+                    },
+                    "Puri Beach": {
+                        "total_slots": 25,
+                        "available_slots": 3,
+                        "occupied_slots": 22,
+                        "occupancy_rate": 0.88,
+                        "location": [19.8135, 85.8312],
+                        "zone": "D",
+                        "city": "Puri"
+                    },
+                    "Rourkela Industrial": {
+                        "total_slots": 35,
+                        "available_slots": 20,
+                        "occupied_slots": 15,
+                        "occupancy_rate": 0.43,
+                        "location": [22.2604, 84.8536],
+                        "zone": "E",
+                        "city": "Rourkela"
+                    },
+                    "Berhampur Market": {
+                        "total_slots": 20,
+                        "available_slots": 12,
+                        "occupied_slots": 8,
+                        "occupancy_rate": 0.4,
+                        "location": [19.3142, 84.7941],
+                        "zone": "F",
+                        "city": "Berhampur"
+                    },
+                    "Bhubaneswar Airport": {
+                        "total_slots": 60,
+                        "available_slots": 45,
+                        "occupied_slots": 15,
+                        "occupancy_rate": 0.25,
+                        "location": [20.2444, 85.8178],
+                        "zone": "A",
+                        "city": "Bhubaneswar"
+                    },
+                    "Cuttack Medical": {
+                        "total_slots": 15,
+                        "available_slots": 2,
+                        "occupied_slots": 13,
+                        "occupancy_rate": 0.87,
+                        "location": [20.4725, 85.8828],
+                        "zone": "B",
+                        "city": "Cuttack"
+                    },
+                    "Sambalpur University": {
+                        "total_slots": 28,
+                        "available_slots": 18,
+                        "occupied_slots": 10,
+                        "occupancy_rate": 0.36,
+                        "location": [21.4569, 83.9712],
+                        "zone": "C",
+                        "city": "Sambalpur"
+                    },
+                    "Puri Temple": {
+                        "total_slots": 18,
+                        "available_slots": 1,
+                        "occupied_slots": 17,
+                        "occupancy_rate": 0.94,
+                        "location": [19.8035, 85.8212],
+                        "zone": "D",
+                        "city": "Puri"
+                    }
+                };
+
+                this.updateParkingMarkers(odishaParkingData);
+                console.log('📊 Loaded Odisha demo parking data');
+            }
+
+            /**
+             * Update parking markers on the map
+             */
+            updateParkingMarkers(parkingData) {
+                // Clear existing markers
+                this.parkingMarkers.forEach(marker => {
+                    this.map.removeLayer(marker);
+                });
+                this.parkingMarkers.clear();
+
+                let totalSlots = 0;
+                let availableSlots = 0;
+
+                // Add new markers
+                Object.entries(parkingData).forEach(([lotName, lotData]) => {
+                    const coords = lotData.location;
+                    const isAvailable = lotData.available_slots > 0;
+                    const occupancyRate = lotData.occupancy_rate;
+
+                    // Determine marker color based on availability
+                    let markerColor = '#dc3545'; // Red for occupied
+                    if (isAvailable) {
+                        if (occupancyRate < 0.3) {
+                            markerColor = '#28a745'; // Green for many available
+                        } else if (occupancyRate < 0.7) {
+                            markerColor = '#ffc107'; // Yellow for some available
+                        } else {
+                            markerColor = '#fd7e14'; // Orange for few available
+                        }
+                    }
+
+                    // Create custom marker icon
+                    const markerIcon = L.divIcon({
+                        className: 'parking-marker',
+                        html: `<div style="
+                            background: ${markerColor};
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 50%;
+                            border: 3px solid white;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 12px;
+                            color: white;
+                            font-weight: bold;
+                        ">P</div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+
+                    // Create marker
+                    const marker = L.marker(coords, { icon: markerIcon })
+                        .bindPopup(this.createParkingPopup(lotName, lotData))
+                        .addTo(this.map);
+
+                    this.parkingMarkers.set(lotName, marker);
+
+                    // Update counters
+                    totalSlots += lotData.total_slots;
+                    availableSlots += lotData.available_slots;
+                });
+
+                // Update info panel
+                this.updateInfoPanel(totalSlots, availableSlots);
+                console.log(`📍 Updated ${this.parkingMarkers.size} Odisha parking markers`);
+            }
+
+            /**
+             * Create popup content for parking markers
+             */
+            createParkingPopup(lotName, lotData) {
+                const distance = this.userLocation ? 
+                    this.calculateDistance(this.userLocation, lotData.location) : 'Unknown';
+                
+                const statusColor = lotData.available_slots > 0 ? '#28a745' : '#dc3545';
+                const statusText = lotData.available_slots > 0 ? 'Available' : 'Full';
+
+                return `
+                    <div style="min-width: 200px;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">${lotName}</h4>
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="
+                                width: 12px; 
+                                height: 12px; 
+                                background: ${statusColor}; 
+                                border-radius: 50%; 
+                                margin-right: 8px;
+                            "></div>
+                            <strong style="color: ${statusColor};">${statusText}</strong>
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4; margin-bottom: 10px;">
+                            <div><strong>City:</strong> ${lotData.city || 'N/A'}</div>
+                            <div><strong>Available:</strong> ${lotData.available_slots}/${lotData.total_slots} slots</div>
+                            <div><strong>Occupancy:</strong> ${Math.round(lotData.occupancy_rate * 100)}%</div>
+                            <div><strong>Distance:</strong> ${distance}</div>
+                            <div><strong>Zone:</strong> ${lotData.zone}</div>
+                        </div>
+                        <button onclick="window.odishaParkingMap.navigateToParking('${lotName}', ${lotData.location[0]}, ${lotData.location[1]})" 
+                                style="
+                                    background: #007bff; 
+                                    color: white; 
+                                    border: none; 
+                                    padding: 8px 12px; 
+                                    border-radius: 4px; 
+                                    cursor: pointer; 
+                                    font-size: 12px;
+                                    width: 100%;
+                                    margin-top: 5px;
+                                ">
+                            🗺️ Navigate Here
+                        </button>
+                    </div>
+                `;
+            }
+
+            /**
+             * Navigate to selected parking location
+             */
+            navigateToParking(parkingName, lat, lng) {
+                const parkingLocation = { lat: lat, lng: lng };
+                
+                if (!this.userLocation) {
+                    alert('Please set your location first to get navigation directions.');
+                    return;
+                }
+
+                // Draw navigation route
+                this.drawNavigationRoute(parkingLocation, parkingName);
+                
+                // Show success message
+                document.getElementById('statusText').textContent = `Navigation route to ${parkingName} displayed`;
+                
+                console.log(`🗺️ Navigation initiated to ${parkingName}`);
+            }
+
+            /**
+             * Calculate distance between two coordinates (in km)
+             */
+            calculateDistance(coord1, coord2) {
+                const R = 6371; // Earth's radius in km
+                const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+                const dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(coord1[0] * Math.PI / 180) * Math.cos(coord2[0] * Math.PI / 180) *
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distance = R * c;
+                return distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`;
+            }
+
+            /**
+             * Update info panel with current statistics
+             */
+            updateInfoPanel(totalSlots, availableSlots) {
+                document.getElementById('parkingCount').textContent = totalSlots;
+                document.getElementById('availableCount').textContent = availableSlots;
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            }
+
+            /**
+             * Update status indicator
+             */
+            updateStatus(text, type) {
+                document.getElementById('statusText').textContent = text;
+                const dot = document.getElementById('statusDot');
+                dot.className = `status-dot ${type}`;
+            }
+
+            /**
+             * Show/hide loading indicator
+             */
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            /**
+             * Show error message
+             */
+            showError(message) {
+                console.error(message);
+                alert(message);
+            }
+        }
+
+        // Route functionality
+        function getRouteToNearestParking() {
+            if (!userLocation) {
+                alert('Please allow location access to get route to nearest parking');
+                return;
+            }
+            
+            const routePanel = document.getElementById('routePanel');
+            const routeInfo = document.getElementById('routeInfo');
+            
+            // Show loading
+            routeInfo.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Finding nearest parking and calculating route...</p>';
+            routePanel.style.display = 'block';
+            
+            // Get route from API
+            fetch(`/api/route-to-parking?lat=${userLocation.lat}&lng=${userLocation.lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        routeInfo.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                        return;
+                    }
+                    
+                    // Display route information
+                    routeInfo.innerHTML = `
+                        <div class="route-info-item">
+                            <span class="label">Nearest Parking:</span>
+                            <span class="value">${data.nearest_lot}</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">Distance:</span>
+                            <span class="value">${data.distance_km} km</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">Estimated Time:</span>
+                            <span class="value">${data.estimated_time_minutes} minutes</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">Available Slots:</span>
+                            <span class="value">${data.lot_data.available_slots}/${data.lot_data.total_slots}</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">Occupancy Rate:</span>
+                            <span class="value">${(data.lot_data.occupancy_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">Type:</span>
+                            <span class="value">${data.lot_data.type}</span>
+                        </div>
+                        <div class="route-info-item">
+                            <span class="label">City:</span>
+                            <span class="value">${data.lot_data.city}</span>
+                        </div>
+                        <div class="route-instructions">
+                            <h4>Route Instructions:</h4>
+                            <ol>
+                                ${data.route_instructions.map(instruction => `<li>${instruction}</li>`).join('')}
+                            </ol>
+                        </div>
+                    `;
+                    
+                    // Highlight the nearest parking lot on the map
+                    if (window.odishaParkingMap && window.odishaParkingMap.parkingMarkers) {
+                        // Remove previous highlights
+                        Object.values(window.odishaParkingMap.parkingMarkers).forEach(marker => {
+                            marker.setOpacity(0.7);
+                        });
+                        
+                        // Highlight the nearest lot
+                        const nearestMarker = window.odishaParkingMap.parkingMarkers[data.nearest_lot];
+                        if (nearestMarker) {
+                            nearestMarker.setOpacity(1.0);
+                            nearestMarker.bounce();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting route:', error);
+                    routeInfo.innerHTML = '<p style="color: red;">Error getting route information. Please try again.</p>';
+                });
+        }
+        
+        // Initialize the Odisha parking map when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initializing Odisha Interactive Parking Map...');
+            window.odishaParkingMap = new OdishaParkingMap();
+            
+            // Add event listeners for routing
+            document.getElementById('getRouteBtn').addEventListener('click', getRouteToNearestParking);
+            document.getElementById('closeRouteBtn').addEventListener('click', () => {
+                document.getElementById('routePanel').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NearByParkings.AI - Smart Parking Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            gap: 2rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        .map-container {
+            flex: 2;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 200px;
+        }
+
+        .control-group.location-group {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+        }
+
+        .btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn.success {
+            background: #28a745;
+        }
+
+        .btn.success:hover {
+            background: #218838;
+        }
+
+        .btn.danger {
+            background: #dc3545;
+        }
+
+        .btn.danger:hover {
+            background: #c82333;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .info-panel {
+            flex: 1;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .info-panel h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .slot-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .slot-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .slot-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .slot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .slot-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .slot-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .slot-status.available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .slot-status.occupied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .slot-details {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .slot-details div {
+            margin-bottom: 0.25rem;
+        }
+
+        .slot-details strong {
+            color: #333;
+        }
+
+        .legend {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .legend h4 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .legend-color.available {
+            background: #28a745;
+        }
+
+        .legend-color.occupied {
+            background: #dc3545;
+        }
+
+        .legend-color.user {
+            background: #007bff;
+        }
+
+        .route-panel {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .route-panel h4 {
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+
+        .route-instructions {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .route-instructions div {
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .controls {
+                position: relative;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                margin-bottom: 1rem;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                min-width: auto;
+            }
+
+            .control-group.location-group {
+                min-width: auto;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="nav">
+            <div class="logo">🚗 Bhubaneswar Street Parking Demo</div>
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                <a href="/odisha-map" class="nav-btn"><i class="fas fa-map"></i> Bhubaneswar Map</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="controls">
+                <div class="control-group location-group">
+                    <label for="locationInput">📍 Enter your location:</label>
+                    <input type="text" id="locationInput" placeholder="e.g., Airport, Railway Station, IT Park, Janpath..." style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9rem; width: 100%;">
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button id="setLocationBtn" class="btn" style="flex: 1;">Set Location</button>
+                        <button id="getCurrentLocationBtn" class="btn success" style="flex: 1;">
+                            <i class="fas fa-map-marker-alt"></i> Use GPS
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <button id="centerMap" class="btn">🎯 Center Map</button>
+                    <button id="toggleTraffic" class="btn">🚦 Traffic</button>
+                </div>
+                
+                <div class="control-group">
+                    <button id="clearRoute" class="btn secondary">🗺️ Clear Route</button>
+                </div>
+                
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Enter your location to get started</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h2>📍 Street Parking Status</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="totalSlots">0</h3>
+                    <p>Total Slots</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="availableSlots">0</h3>
+                    <p>Available</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="occupiedSlots">0</h3>
+                    <p>Occupied</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="occupancyRate">0%</h3>
+                    <p>Occupancy Rate</p>
+                </div>
+            </div>
+
+            <div class="slot-list" id="slotList">
+                <!-- Slot items will be populated here -->
+            </div>
+
+            <div class="legend">
+                <h4>Legend</h4>
+                <div class="legend-item">
+                    <div class="legend-color available"></div>
+                    <span>Available Slot</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color occupied"></div>
+                    <span>Occupied Slot</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color user"></div>
+                    <span>Your Location</span>
+                </div>
+            </div>
+
+            <div class="route-panel" id="routePanel">
+                <h4>🗺️ Navigation Route</h4>
+                <div class="route-instructions" id="routeInstructions">
+                    <!-- Route instructions will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        class StreetParkingDemo {
+            constructor() {
+                this.map = null;
+                this.userLocation = null;
+                this.parkingSlots = new Map();
+                this.junctionMarkers = [];
+                this.trafficLayer = null;
+                this.routeLayer = null;
+                this.apiBaseUrl = '/api';
+                
+                // Bhubaneswar city bounds - detailed street-level coverage
+                this.bhubaneswarBounds = {
+                    southwest: [20.15, 85.70],
+                    northeast: [20.45, 85.95],
+                    center: [20.2961, 85.8245] // Center on Bhubaneswar city
+                };
+                
+                // Bhubaneswar area coordinates for location input - expanded list
+                this.areaCoordinates = {
+                    'bhubaneswar': [20.2961, 85.8245],
+                    'airport': [20.2444, 85.8178],
+                    'railway station': [20.2961, 85.8245],
+                    'it park': [20.3500, 85.8000],
+                    'market': [20.2800, 85.8300],
+                    'hospital': [20.3100, 85.8200],
+                    'school': [20.2900, 85.8100],
+                    'college': [20.3000, 85.8400],
+                    'mall': [20.2700, 85.8500],
+                    'temple': [20.3200, 85.8100],
+                    'janpath': [20.2961, 85.8245],
+                    'master canteen': [20.2950, 85.8230],
+                    'rajpath': [20.2970, 85.8250],
+                    'airport road': [20.2500, 85.8200],
+                    'it park road': [20.3500, 85.8000],
+                    'market road': [20.2800, 85.8300],
+                    'railway station road': [20.2961, 85.8245],
+                    'hospital area': [20.3100, 85.8200],
+                    'university road': [20.3000, 85.8400],
+                    'shopping complex': [20.2700, 85.8500],
+                    'residential area': [20.3200, 85.8100],
+                    'city center': [20.2961, 85.8245],
+                    'downtown': [20.2961, 85.8245],
+                    'central': [20.2961, 85.8245]
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.initMap();
+                this.initControls();
+                // Don't fetch parking data until user inputs location
+                this.startAutoRefresh();
+            }
+
+            /**
+             * Initialize the Leaflet map with Bhubaneswar geographic restrictions
+             */
+            initMap() {
+                // Create map centered on Bhubaneswar
+                this.map = L.map('map', {
+                    center: this.bhubaneswarBounds.center,
+                    zoom: 13,
+                    maxBounds: [
+                        this.bhubaneswarBounds.southwest,
+                        this.bhubaneswarBounds.northeast
+                    ],
+                    maxBoundsViscosity: 1.0, // Strict bounds enforcement
+                    zoomSnap: 0.5,
+                    zoomDelta: 0.5
+                });
+                
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors | Bhubaneswar Street Parking',
+                    maxZoom: 18,
+                    minZoom: 11
+                }).addTo(this.map);
+                
+                console.log('🗺️ Street parking map initialized');
+            }
+
+            /**
+             * Initialize control event listeners
+             */
+            initControls() {
+                // Set location button
+                document.getElementById('setLocationBtn').addEventListener('click', () => {
+                    this.setLocationFromInput();
+                });
+
+                // Get current location (GPS) button
+                document.getElementById('getCurrentLocationBtn').addEventListener('click', () => {
+                    this.getCurrentLocation();
+                });
+
+                // Add GPS test button for debugging
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'g') {
+                        console.log('🧪 GPS Test Mode Activated');
+                        this.testGPSFunctionality();
+                    }
+                });
+
+                // Location input enter key
+                document.getElementById('locationInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.setLocationFromInput();
+                    }
+                });
+
+                // Center map button
+                document.getElementById('centerMap').addEventListener('click', () => {
+                    this.centerOnBhubaneswar();
+                });
+
+                // Toggle traffic button
+                document.getElementById('toggleTraffic').addEventListener('click', () => {
+                    this.toggleTraffic();
+                });
+
+                // Clear route button
+                document.getElementById('clearRoute').addEventListener('click', () => {
+                    this.clearNavigationRoute();
+                    document.getElementById('statusText').textContent = 'Navigation route cleared';
+                });
+            }
+
+            /**
+             * Set location from user input
+             */
+            setLocationFromInput() {
+                const input = document.getElementById('locationInput');
+                const location = input.value.toLowerCase().trim();
+                
+                if (!location) {
+                    this.showLocationError('Please enter a location name.');
+                    return;
+                }
+                
+                if (this.areaCoordinates[location]) {
+                    const coords = this.areaCoordinates[location];
+                    this.userLocation = { lat: coords[0], lng: coords[1] };
+                    
+                    // Update map view to the selected location
+                    this.map.setView(coords, 14);
+                    
+                    // Update user location display
+                    this.updateUserLocationDisplay();
+                    
+                    // Refresh parking data with new location
+                    this.fetchParkingData();
+                    
+                    // Update status
+                    document.getElementById('statusText').textContent = `Location set to: ${location.charAt(0).toUpperCase() + location.slice(1)}`;
+                    
+                    // Show success notification
+                    this.showLocationSuccess(`Location set to ${location.charAt(0).toUpperCase() + location.slice(1)}`);
+                    
+                    console.log(`📍 Location set to: ${location} (${coords[0]}, ${coords[1]})`);
+                } else {
+                    // Try to find similar locations
+                    const suggestions = this.findSimilarLocations(location);
+                    
+                    if (suggestions.length > 0) {
+                        const suggestionText = suggestions.slice(0, 5).join(', ');
+                        this.showLocationError(
+                            `Location "${location}" not found. Did you mean: ${suggestionText}? ` +
+                            `Available locations: Airport, Railway Station, IT Park, Market, Hospital, Janpath, Master Canteen, Rajpath, etc.`
+                        );
+                    } else {
+                        this.showLocationError(
+                            `Location "${location}" not found. Available locations: Airport, Railway Station, IT Park, Market, Hospital, Janpath, Master Canteen, Rajpath, Airport Road, IT Park Road, Market Road, Railway Station Road, Hospital Area, University Road, Shopping Complex, Residential Area, City Center, Downtown, Central, School, College, Mall, Temple.`
+                        );
+                    }
+                }
+            }
+
+            /**
+             * Find similar locations based on user input
+             */
+            findSimilarLocations(input) {
+                const locations = Object.keys(this.areaCoordinates);
+                const suggestions = [];
+                
+                // Simple similarity check
+                locations.forEach(location => {
+                    if (location.includes(input) || input.includes(location)) {
+                        suggestions.push(location);
+                    }
+                });
+                
+                // If no direct matches, check for partial matches
+                if (suggestions.length === 0) {
+                    locations.forEach(location => {
+                        const words = location.split(' ');
+                        words.forEach(word => {
+                            if (word.includes(input) || input.includes(word)) {
+                                if (!suggestions.includes(location)) {
+                                    suggestions.push(location);
+                                }
+                            }
+                        });
+                    });
+                }
+                
+                return suggestions;
+            }
+
+            /**
+             * Get current location using GPS
+             */
+            getCurrentLocation() {
+                console.log('🔍 GPS Request initiated');
+                
+                // Check if geolocation is supported
+                if (!navigator.geolocation) {
+                    console.error('❌ Geolocation not supported');
+                    this.showLocationError('Geolocation is not supported by this browser. Please use manual location selection.');
+                    return;
+                }
+
+                // Update status and button
+                document.getElementById('statusText').textContent = 'Getting your location...';
+                document.getElementById('getCurrentLocationBtn').disabled = true;
+                document.getElementById('getCurrentLocationBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting GPS...';
+
+                console.log('📍 Requesting GPS location...');
+
+                // Request location with enhanced options
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log('✅ GPS Success:', position);
+                        this.handleLocationSuccess(position);
+                    },
+                    (error) => {
+                        console.error('❌ GPS Error:', error);
+                        this.handleLocationError(error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 20000,  // 20 seconds timeout
+                        maximumAge: 60000  // 1 minute cache
+                    }
+                );
+
+                // Fallback timeout
+                setTimeout(() => {
+                    if (document.getElementById('getCurrentLocationBtn').innerHTML.includes('spinner')) {
+                        console.log('⏰ GPS timeout - resetting button');
+                        this.resetGPSButton();
+                        this.showLocationError('GPS request timed out. Please try again or use manual location selection.');
+                    }
+                }, 25000);
+            }
+
+            /**
+             * Handle successful location retrieval
+             */
+            handleLocationSuccess(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+                
+                console.log(`📍 GPS coordinates: ${lat}, ${lng} (accuracy: ${accuracy}m)`);
+                
+                // Check if location is within Bhubaneswar bounds (with some tolerance)
+                if (this.isLocationInBhubaneswar(lat, lng)) {
+                    this.userLocation = { lat: lat, lng: lng };
+                    
+                    // Update map view to the GPS location with appropriate zoom
+                    this.map.setView([lat, lng], 15);
+                    
+                    // Add user location marker
+                    this.updateUserLocationDisplay();
+                    
+                    // Refresh parking data with GPS location
+                    this.fetchParkingData();
+                    
+                    // Update status with success message
+                    document.getElementById('statusText').textContent = `GPS location found: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    
+                    // Show success notification
+                    this.showLocationSuccess(`Location found! Accuracy: ${Math.round(accuracy)}m`);
+                    
+                    console.log(`📍 GPS location set successfully: ${lat}, ${lng}`);
+                } else {
+                    // Location is outside Bhubaneswar - offer to use anyway or suggest manual input
+                    const useAnyway = confirm(
+                        `Your location (${lat.toFixed(4)}, ${lng.toFixed(4)}) appears to be outside Bhubaneswar city limits. ` +
+                        `Would you like to use this location anyway? Click OK to use GPS location, or Cancel to use manual selection.`
+                    );
+                    
+                    if (useAnyway) {
+                        this.userLocation = { lat: lat, lng: lng };
+                        this.map.setView([lat, lng], 13); // Wider view for outside city
+                        this.updateUserLocationDisplay();
+                        this.fetchParkingData();
+                        document.getElementById('statusText').textContent = `GPS location used (outside city): ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        this.showLocationSuccess('Location set (outside city bounds)');
+                    } else {
+                        document.getElementById('statusText').textContent = 'Please use manual location selection';
+                        this.showLocationInfo('Please select a location within Bhubaneswar using the manual input below.');
+                    }
+                }
+                
+                // Reset button
+                this.resetGPSButton();
+            }
+
+            /**
+             * Handle location error
+             */
+            handleLocationError(error) {
+                console.error('GPS Error:', error);
+                
+                let errorMessage = '';
+                let userMessage = '';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Location access denied by user';
+                        userMessage = 'Location access was denied. Please allow location access in your browser settings and try again.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location information unavailable';
+                        userMessage = 'Unable to determine your location. Please check your GPS/network connection or use manual location selection.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'Location request timed out';
+                        userMessage = 'Location request took too long. Please try again or use manual location selection.';
+                        break;
+                    default:
+                        errorMessage = 'Unknown location error';
+                        userMessage = 'An error occurred while getting your location. Please use manual location selection.';
+                        break;
+                }
+                
+                document.getElementById('statusText').textContent = 'GPS location failed - please use manual selection';
+                this.showLocationError(userMessage);
+                console.error(`📍 GPS Error: ${errorMessage}`);
+                
+                // Reset button
+                this.resetGPSButton();
+            }
+
+            /**
+             * Reset GPS button to original state
+             */
+            resetGPSButton() {
+                document.getElementById('getCurrentLocationBtn').disabled = false;
+                document.getElementById('getCurrentLocationBtn').innerHTML = '<i class="fas fa-map-marker-alt"></i> Use GPS';
+            }
+
+            /**
+             * Show location success notification
+             */
+            showLocationSuccess(message) {
+                this.showNotification(message, 'success');
+            }
+
+            /**
+             * Show location error notification
+             */
+            showLocationError(message) {
+                this.showNotification(message, 'error');
+            }
+
+            /**
+             * Show location info notification
+             */
+            showLocationInfo(message) {
+                this.showNotification(message, 'info');
+            }
+
+            /**
+             * Show notification with different types
+             */
+            showNotification(message, type = 'info') {
+                const colors = {
+                    success: '#4CAF50',
+                    error: '#F44336',
+                    info: '#2196F3',
+                    warning: '#FF9800'
+                };
+                
+                const icons = {
+                    success: '✅',
+                    error: '❌',
+                    info: 'ℹ️',
+                    warning: '⚠️'
+                };
+                
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 100px;
+                    right: 20px;
+                    background: ${colors[type]};
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    max-width: 350px;
+                    z-index: 10000;
+                    font-size: 0.9rem;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                    animation: slideIn 0.3s ease-out;
+                `;
+                
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.2rem;">${icons[type]}</span>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        border: 1px solid rgba(255,255,255,0.3);
+                        padding: 5px 10px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        margin-top: 10px;
+                        font-size: 0.8rem;
+                    ">Got it!</button>
+                `;
+                
+                // Add CSS animation
+                if (!document.getElementById('notification-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'notification-styles';
+                    style.textContent = `
+                        @keyframes slideIn {
+                            from { transform: translateX(100%); opacity: 0; }
+                            to { transform: translateX(0); opacity: 1; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                document.body.appendChild(notification);
+                
+                // Auto-remove after 8 seconds
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                        setTimeout(() => notification.remove(), 300);
+                    }
+                }, 8000);
+            }
+
+            /**
+             * Check if location is within Bhubaneswar bounds
+             */
+            isLocationInBhubaneswar(lat, lng) {
+                const bounds = this.bhubaneswarBounds;
+                const inBounds = (bounds.southwest[0] <= lat <= bounds.northeast[0] &&
+                                bounds.southwest[1] <= lng <= bounds.northeast[1]);
+                
+                console.log(`📍 Location check: (${lat}, ${lng}) - In bounds: ${inBounds}`);
+                console.log(`📍 Bounds: SW(${bounds.southwest[0]}, ${bounds.southwest[1]}) to NE(${bounds.northeast[0]}, ${bounds.northeast[1]})`);
+                
+                return inBounds;
+            }
+
+            /**
+             * Test GPS functionality for debugging
+             */
+            testGPSFunctionality() {
+                console.log('🧪 Testing GPS functionality...');
+                
+                // Test 1: Check if geolocation is supported
+                if (!navigator.geolocation) {
+                    console.error('❌ Test 1 FAILED: Geolocation not supported');
+                    this.showLocationError('GPS Test: Geolocation not supported by browser');
+                    return;
+                }
+                console.log('✅ Test 1 PASSED: Geolocation supported');
+                
+                // Test 2: Check if we're on HTTPS or localhost
+                const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (!isSecure) {
+                    console.error('❌ Test 2 FAILED: Not on secure context (HTTPS or localhost required)');
+                    this.showLocationError('GPS Test: HTTPS or localhost required for GPS');
+                    return;
+                }
+                console.log('✅ Test 2 PASSED: Secure context detected');
+                
+                // Test 3: Try to get current position
+                console.log('🧪 Test 3: Attempting to get current position...');
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log('✅ Test 3 PASSED: GPS position obtained:', position);
+                        this.showLocationSuccess(`GPS Test PASSED: Location found (${position.coords.latitude}, ${position.coords.longitude})`);
+                        
+                        // Use the test location
+                        this.userLocation = { 
+                            lat: position.coords.latitude, 
+                            lng: position.coords.longitude 
+                        };
+                        this.map.setView([position.coords.latitude, position.coords.longitude], 15);
+                        this.updateUserLocationDisplay();
+                        this.fetchParkingData();
+                    },
+                    (error) => {
+                        console.error('❌ Test 3 FAILED: GPS error:', error);
+                        this.showLocationError(`GPS Test FAILED: ${error.message}`);
+                    },
+                    {
+                        enableHighAccuracy: false,  // Faster for testing
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            }
+
+            /**
+             * Center map on Bhubaneswar
+             */
+            centerOnBhubaneswar() {
+                this.map.setView(this.bhubaneswarBounds.center, 13);
+                console.log('🎯 Map centered on Bhubaneswar city');
+            }
+
+            /**
+             * Update user location display
+             */
+            updateUserLocationDisplay() {
+                if (this.userLocation) {
+                    // Add or update blue dot marker for user location
+                    this.addUserLocationMarker();
+                }
+            }
+
+            /**
+             * Add blue dot marker for user's current location
+             */
+            addUserLocationMarker() {
+                if (this.userLocation) {
+                    // Remove existing user location marker
+                    this.map.eachLayer(layer => {
+                        if (layer.options && layer.options.userLocation) {
+                            this.map.removeLayer(layer);
+                        }
+                    });
+
+                    // Create blue circle marker that scales with zoom
+                    const getMarkerRadius = () => {
+                        const zoom = this.map.getZoom();
+                        return Math.max(8, 8 + (zoom - 14) * 2); // Scale with zoom
+                    };
+                    
+                    const userMarker = L.circleMarker([this.userLocation.lat, this.userLocation.lng], {
+                        radius: getMarkerRadius(),
+                        fillColor: '#007bff',
+                        color: '#ffffff',
+                        weight: 3,
+                        opacity: 1,
+                        fillOpacity: 0.8,
+                        userLocation: true
+                    });
+
+                    // Add popup
+                    userMarker.bindPopup(`
+                        <div style="text-align: center;">
+                            <h4 style="margin: 0 0 5px 0; color: #007bff;">📍 Your Location</h4>
+                            <p style="margin: 0; font-size: 0.9rem;">
+                                ${this.userLocation.lat.toFixed(4)}, ${this.userLocation.lng.toFixed(4)}
+                            </p>
+                        </div>
+                    `);
+
+                    userMarker.addTo(this.map);
+                    
+                    // Update marker size when zooming to keep it visible
+                    this.map.on('zoomend', () => {
+                        userMarker.setRadius(getMarkerRadius());
+                    });
+                    console.log('📍 User location marker added');
+                }
+            }
+
+            /**
+             * Toggle traffic layer visibility
+             */
+            toggleTraffic() {
+                if (this.trafficLayer) {
+                    this.map.removeLayer(this.trafficLayer);
+                    this.trafficLayer = null;
+                    document.getElementById('statusText').textContent = 'Traffic layer hidden';
+                    console.log('🚦 Traffic layer hidden');
+                } else {
+                    // Create simulated traffic layer
+                    this.trafficLayer = L.layerGroup();
+                    
+                    // Add some simulated traffic markers
+                    const trafficPoints = [
+                        [20.2961, 85.8245, 'heavy'],
+                        [20.2950, 85.8230, 'moderate'],
+                        [20.2970, 85.8250, 'light'],
+                        [20.2955, 85.8240, 'heavy'],
+                        [20.2965, 85.8255, 'moderate']
+                    ];
+                    
+                    trafficPoints.forEach(([lat, lng, level]) => {
+                        const color = level === 'heavy' ? '#dc3545' : level === 'moderate' ? '#ffc107' : '#28a745';
+                        const marker = L.circleMarker([lat, lng], {
+                            radius: 6,
+                            fillColor: color,
+                            color: '#ffffff',
+                            weight: 2,
+                            opacity: 0.8,
+                            fillOpacity: 0.6
+                        });
+                        marker.bindPopup(`Traffic: ${level}`);
+                        this.trafficLayer.addLayer(marker);
+                    });
+                    
+                    this.trafficLayer.addTo(this.map);
+                    document.getElementById('statusText').textContent = 'Traffic layer shown';
+                    console.log('🚦 Traffic layer shown');
+                }
+            }
+
+            /**
+             * Fetch street parking data from API
+             */
+            async fetchParkingData() {
+                try {
+                    // Include user location in API request if available
+                    let apiUrl = `${this.apiBaseUrl}/street-parking`;
+                    if (this.userLocation) {
+                        apiUrl += `?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`;
+                    }
+                    
+                    const response = await fetch(apiUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.loadStreetParkingData(data);
+                        
+                        // Also fetch AI suggestions if user location is available
+                        if (this.userLocation) {
+                            this.fetchAISuggestions();
+                        this.fetchTrafficJunctions();
+                        }
+                        
+                        document.getElementById('statusText').textContent = 'Street parking data loaded';
+                        console.log('📊 Street parking data loaded');
+                    } else {
+                        throw new Error('Failed to fetch street parking data');
+                    }
+                } catch (error) {
+                    console.error('Error fetching street parking data:', error);
+                    document.getElementById('statusText').textContent = 'Using fallback data';
+                    this.loadFallbackData();
+                }
+            }
+
+            /**
+             * Fetch AI-powered parking suggestions
+             */
+            async fetchAISuggestions() {
+                try {
+                    const apiUrl = `${this.apiBaseUrl}/ai-parking-suggestions?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`;
+                    const response = await fetch(apiUrl);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.displayAIInsights(data.ai_insights);
+                        console.log('🤖 AI suggestions loaded');
+                    } else {
+                        console.error('Failed to fetch AI suggestions');
+                    }
+                } catch (error) {
+                    console.error('Error fetching AI suggestions:', error);
+                }
+            }
+
+            /**
+             * Fetch nearby traffic junctions
+             */
+            async fetchTrafficJunctions() {
+                try {
+                    const apiUrl = `${this.apiBaseUrl}/traffic-junctions?lat=${this.userLocation.lat}&lng=${this.userLocation.lng}`;
+                    const response = await fetch(apiUrl);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.junctions) {
+                            this.displayTrafficJunctions(data.junctions);
+                            console.log('🚦 Traffic junctions loaded');
+                        }
+                    } else {
+                        console.error('Failed to fetch traffic junctions');
+                    }
+                } catch (error) {
+                    console.error('Error fetching traffic junctions:', error);
+                }
+            }
+
+            /**
+             * Display traffic junction information
+             */
+            displayTrafficJunctions(junctions) {
+                const junctionCount = Object.keys(junctions).length;
+                
+                if (junctionCount > 0) {
+                    const closestJunction = Object.values(junctions)[0];
+                    const statusText = document.getElementById('statusText');
+                    const currentText = statusText.textContent;
+                    statusText.innerHTML = `${currentText}<br>🚦 ${junctionCount} traffic junctions nearby. Closest: ${closestJunction.name} (${closestJunction.distance_km}km)`;
+                    
+                    // Add junction markers to map
+                    this.addJunctionMarkers(junctions);
+                }
+            }
+
+            /**
+             * Add traffic junction markers to the map
+             */
+            addJunctionMarkers(junctions) {
+                // Remove existing junction markers
+                if (this.junctionMarkers) {
+                    this.junctionMarkers.forEach(marker => this.map.removeLayer(marker));
+                }
+                this.junctionMarkers = [];
+
+                // Add new junction markers
+                Object.entries(junctions).forEach(([name, junction]) => {
+                    const [lat, lng] = junction.location;
+                    
+                    // Create junction icon
+                    const junctionIcon = L.divIcon({
+                        html: '<div style="background: #ff6b35; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">🚦</div>',
+                        className: 'junction-marker',
+                        iconSize: [25, 25],
+                        iconAnchor: [12, 12]
+                    });
+
+                    const marker = L.marker([lat, lng], { icon: junctionIcon })
+                        .bindPopup(this.createJunctionPopup(junction))
+                        .addTo(this.map);
+                    
+                    this.junctionMarkers.push(marker);
+                });
+            }
+
+            /**
+             * Create popup content for traffic junction
+             */
+            createJunctionPopup(junction) {
+                const trafficLevel = junction.traffic_level;
+                const parkingPressure = junction.parking_pressure;
+                
+                let trafficColor = '#28a745'; // green
+                if (trafficLevel === 'high') trafficColor = '#ffc107'; // yellow
+                if (trafficLevel === 'very_high') trafficColor = '#dc3545'; // red
+                
+                let pressureColor = '#28a745'; // green
+                if (parkingPressure === 'high') pressureColor = '#ffc107'; // yellow
+                if (parkingPressure === 'very_high') pressureColor = '#dc3545'; // red
+
+                return `
+                    <div style="min-width: 200px;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">🚦 ${junction.name}</h4>
+                        <div style="margin-bottom: 8px;">
+                            <strong>📍 Distance:</strong> ${junction.distance_km}km ${junction.direction}
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>🚗 Traffic Level:</strong> 
+                            <span style="color: ${trafficColor}; font-weight: bold;">${trafficLevel.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>🅿️ Parking Pressure:</strong> 
+                            <span style="color: ${pressureColor}; font-weight: bold;">${parkingPressure.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>🔧 Type:</strong> ${junction.type.replace('_', ' ').toUpperCase()}
+                        </div>
+                        <div>
+                            <strong>🏢 Nearby:</strong><br>
+                            ${junction.nearby_landmarks.map(landmark => `• ${landmark}`).join('<br>')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            /**
+             * Display AI insights to the user
+             */
+            displayAIInsights(insights) {
+                const statusElement = document.getElementById('statusText');
+                if (insights && insights.length > 0) {
+                    // Show the first insight as the main status
+                    statusElement.textContent = insights[0];
+                    
+                    // Show all insights in a temporary notification
+                    if (insights.length > 1) {
+                        setTimeout(() => {
+                            const notification = document.createElement('div');
+                            notification.style.cssText = `
+                                position: fixed;
+                                top: 100px;
+                                right: 20px;
+                                background: rgba(0, 0, 0, 0.9);
+                                color: white;
+                                padding: 15px;
+                                border-radius: 10px;
+                                max-width: 300px;
+                                z-index: 10000;
+                                font-size: 0.9rem;
+                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                            `;
+                            
+                            notification.innerHTML = `
+                                <div style="font-weight: bold; margin-bottom: 10px; color: #4CAF50;">🤖 AI Insights</div>
+                                ${insights.map(insight => `<div style="margin-bottom: 5px;">${insight}</div>`).join('')}
+                                <button onclick="this.parentElement.remove()" style="
+                                    background: #4CAF50;
+                                    color: white;
+                                    border: none;
+                                    padding: 5px 10px;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    margin-top: 10px;
+                                    width: 100%;
+                                ">Got it!</button>
+                            `;
+                            
+                            document.body.appendChild(notification);
+                            
+                            // Auto-remove after 10 seconds
+                            setTimeout(() => {
+                                if (notification.parentElement) {
+                                    notification.remove();
+                                }
+                            }, 10000);
+                        }, 1000);
+                    }
+                }
+            }
+
+            /**
+             * Load street parking data and create markers
+             */
+            loadStreetParkingData(data) {
+                // Clear existing markers
+                this.parkingSlots.clear();
+                
+                // Process each parking slot
+                Object.entries(data).forEach(([slotName, slotData]) => {
+                    this.createParkingSlotMarker(slotName, slotData);
+                });
+                
+                // Update statistics
+                this.updateStatistics(data);
+                
+                // Update slot list
+                this.updateSlotList(data);
+            }
+
+            /**
+             * Create parking slot marker
+             */
+            createParkingSlotMarker(slotName, slotData) {
+                const [lat, lng] = slotData.location;
+                const isAvailable = slotData.status === 'available';
+                
+                // Create marker with appropriate color
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 6,
+                    fillColor: isAvailable ? '#28a745' : '#dc3545',
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+                
+                // Add popup with slot information
+                marker.bindPopup(this.createSlotPopup(slotName, slotData));
+                
+                // Add click event for navigation
+                marker.on('click', () => {
+                    this.navigateToSlot(slotName, lat, lng);
+                });
+                
+                marker.addTo(this.map);
+                this.parkingSlots.set(slotName, marker);
+            }
+
+            /**
+             * Create popup content for parking slot
+             */
+            createSlotPopup(slotName, slotData) {
+                const statusColor = slotData.status === 'available' ? '#28a745' : '#dc3545';
+                const statusText = slotData.status === 'available' ? 'Available' : 'Occupied';
+                
+                // AI recommendation badge
+                let aiBadge = '';
+                if (slotData.ai_score !== undefined) {
+                    const aiScore = slotData.ai_score;
+                    const aiLevel = slotData.ai_recommendation || 'medium';
+                    const aiColor = aiLevel === 'high' ? '#4CAF50' : aiLevel === 'medium' ? '#FF9800' : '#F44336';
+                    const aiIcon = aiLevel === 'high' ? '🤖' : aiLevel === 'medium' ? '🤖' : '🤖';
+                    
+                    aiBadge = `
+                        <div style="margin: 8px 0; padding: 6px; background: ${aiColor}20; border-left: 3px solid ${aiColor}; border-radius: 4px; font-size: 11px;">
+                            <strong>${aiIcon} AI Score: ${Math.round(aiScore * 100)}%</strong>
+                            <div style="color: #666; margin-top: 2px;">${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)} recommendation</div>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div style="min-width: 220px;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">${slotName}${slotData.distance_km ? ` (${slotData.distance_km} km away)` : ''}</h4>
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="
+                                width: 12px; 
+                                height: 12px; 
+                                background: ${statusColor}; 
+                                border-radius: 50%; 
+                                margin-right: 8px;
+                            "></div>
+                            <strong style="color: ${statusColor};">${statusText}</strong>
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4;">
+                            <div><strong>Area:</strong> ${slotData.area}</div>
+                            <div><strong>Type:</strong> ${slotData.type}</div>
+                            <div><strong>Capacity:</strong> ${slotData.capacity} vehicle</div>
+                            ${slotData.distance_km ? `<div><strong>Distance:</strong> ${slotData.distance_km} km</div>` : ''}
+                        </div>
+                        ${aiBadge}
+                        <div style="margin-top: 10px; padding: 8px; background: #e8f5e8; border-radius: 5px; font-size: 12px; color: #2d5a2d;">
+                            <strong>🆓 FREE Roadside Parking</strong>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button onclick="window.streetParkingDemo.navigateToSlot('${slotName}', ${slotData.location[0]}, ${slotData.location[1]})" 
+                                    style="
+                                        background: #007bff; 
+                                        color: white; 
+                                        border: none; 
+                                        padding: 8px 16px; 
+                                        border-radius: 5px; 
+                                        cursor: pointer; 
+                                        font-size: 12px;
+                                        width: 100%;
+                                    ">
+                                🗺️ Navigate Here
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            /**
+             * Navigate to selected parking slot
+             */
+            navigateToSlot(slotName, lat, lng) {
+                const slotLocation = { lat: lat, lng: lng };
+                
+                if (!this.userLocation) {
+                    alert('Please set your location first to get navigation directions.');
+                    return;
+                }
+
+                // Draw navigation route
+                this.drawNavigationRoute(slotLocation, slotName);
+                
+                // Show success message
+                document.getElementById('statusText').textContent = `Navigation route to ${slotName} displayed`;
+                
+                console.log(`🗺️ Navigation initiated to ${slotName}`);
+            }
+
+            /**
+             * Draw navigation route from user location to parking slot
+             */
+            drawNavigationRoute(slotLocation, slotName) {
+                if (!this.userLocation) {
+                    alert('Please set your location first to get navigation directions.');
+                    return;
+                }
+
+                // Remove existing route
+                if (this.routeLayer) {
+                    this.map.removeLayer(this.routeLayer);
+                }
+
+                // Create route line
+                const routeLine = L.polyline([
+                    [this.userLocation.lat, this.userLocation.lng],
+                    [slotLocation.lat, slotLocation.lng]
+                ], {
+                    color: '#007bff',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 10'
+                });
+
+                // Create route layer
+                this.routeLayer = L.layerGroup();
+                this.routeLayer.addLayer(routeLine);
+
+                // Add start and end markers
+                const startMarker = L.marker([this.userLocation.lat, this.userLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background: #007bff; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">S</div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                });
+
+                const endMarker = L.marker([slotLocation.lat, slotLocation.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background: #28a745; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">E</div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                });
+
+                this.routeLayer.addLayer(startMarker);
+                this.routeLayer.addLayer(endMarker);
+
+                // Add to map
+                this.routeLayer.addTo(this.map);
+
+                // Show route panel
+                this.showRoutePanel(slotName, slotLocation);
+
+                console.log('🗺️ Navigation route drawn');
+            }
+
+            /**
+             * Show route information panel
+             */
+            showRoutePanel(slotName, slotLocation) {
+                const routePanel = document.getElementById('routePanel');
+                const routeInstructions = document.getElementById('routeInstructions');
+                
+                // Calculate distance
+                const distance = this.calculateDistance(
+                    this.userLocation.lat, this.userLocation.lng,
+                    slotLocation.lat, slotLocation.lng
+                );
+                
+                // Generate route instructions
+                const instructions = this.generateRouteInstructions(slotName, distance);
+                
+                routeInstructions.innerHTML = instructions;
+                routePanel.style.display = 'block';
+            }
+
+            /**
+             * Clear navigation route
+             */
+            clearNavigationRoute() {
+                if (this.routeLayer) {
+                    this.map.removeLayer(this.routeLayer);
+                    this.routeLayer = null;
+                }
+                
+                const routePanel = document.getElementById('routePanel');
+                routePanel.style.display = 'none';
+                
+                console.log('🗺️ Navigation route cleared');
+            }
+
+            /**
+             * Calculate distance between two coordinates (in km)
+             */
+            calculateDistance(lat1, lng1, lat2, lng2) {
+                const R = 6371; // Earth's radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLng = (lng2 - lng1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                        Math.sin(dLng/2) * Math.sin(dLng/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            /**
+             * Generate route instructions
+             */
+            generateRouteInstructions(slotName, distance) {
+                const distanceKm = distance.toFixed(2);
+                const estimatedTime = Math.round(distance * 2); // Rough estimate: 2 minutes per km
+                
+                return `
+                    <div><strong>Destination:</strong> ${slotName}</div>
+                    <div><strong>Distance:</strong> ${distanceKm} km</div>
+                    <div><strong>Estimated Time:</strong> ${estimatedTime} minutes</div>
+                    <div><strong>Route:</strong> Direct route from your location to the parking slot</div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                        <em>Note: This is a simplified route. For detailed directions, use a navigation app.</em>
+                    </div>
+                `;
+            }
+
+            /**
+             * Update statistics display
+             */
+            updateStatistics(data) {
+                const totalSlots = Object.keys(data).length;
+                const availableSlots = Object.values(data).filter(slot => slot.status === 'available').length;
+                const occupiedSlots = totalSlots - availableSlots;
+                const occupancyRate = totalSlots > 0 ? Math.round((occupiedSlots / totalSlots) * 100) : 0;
+                
+                document.getElementById('totalSlots').textContent = totalSlots;
+                document.getElementById('availableSlots').textContent = availableSlots;
+                document.getElementById('occupiedSlots').textContent = occupiedSlots;
+                document.getElementById('occupancyRate').textContent = occupancyRate + '%';
+            }
+
+            /**
+             * Update slot list display
+             */
+            updateSlotList(data) {
+                const slotList = document.getElementById('slotList');
+                slotList.innerHTML = '';
+                
+                // Sort slots by AI score if available, otherwise by distance
+                const sortedSlots = Object.entries(data).sort((a, b) => {
+                    const [nameA, dataA] = a;
+                    const [nameB, dataB] = b;
+                    
+                    // If both have AI scores, sort by AI score (higher is better)
+                    if (dataA.ai_score !== undefined && dataB.ai_score !== undefined) {
+                        return dataB.ai_score - dataA.ai_score;
+                    }
+                    
+                    // If both have distance, sort by distance (closer is better)
+                    if (dataA.distance_km !== undefined && dataB.distance_km !== undefined) {
+                        return dataA.distance_km - dataB.distance_km;
+                    }
+                    
+                    // Default sort by name
+                    return nameA.localeCompare(nameB);
+                });
+                
+                sortedSlots.forEach(([slotName, slotData]) => {
+                    const slotItem = document.createElement('div');
+                    slotItem.className = 'slot-item';
+                    
+                    // AI score badge
+                    let aiScoreBadge = '';
+                    if (slotData.ai_score !== undefined) {
+                        const aiLevel = slotData.ai_recommendation || 'medium';
+                        const aiColor = aiLevel === 'high' ? '#4CAF50' : aiLevel === 'medium' ? '#FF9800' : '#F44336';
+                        aiScoreBadge = `
+                            <div style="margin-top: 8px; padding: 4px 8px; background: ${aiColor}20; border-left: 3px solid ${aiColor}; border-radius: 4px; font-size: 10px;">
+                                <strong>🤖 AI Score: ${Math.round(slotData.ai_score * 100)}%</strong> (${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)})
+                            </div>
+                        `;
+                    }
+                    
+                    slotItem.innerHTML = `
+                        <div class="slot-header">
+                            <div class="slot-name">${slotName}</div>
+                            <div class="slot-status ${slotData.status}">${slotData.status}</div>
+                        </div>
+                        <div class="slot-details">
+                            <div><strong>Area:</strong> ${slotData.area}</div>
+                            <div><strong>Type:</strong> ${slotData.type}</div>
+                            <div><strong>Capacity:</strong> ${slotData.capacity} vehicle</div>
+                            ${slotData.distance_km ? `<div><strong>Distance:</strong> ${slotData.distance_km} km</div>` : ''}
+                        </div>
+                        ${aiScoreBadge}
+                        <div style="margin-top: 8px; padding: 6px; background: #e8f5e8; border-radius: 4px; font-size: 11px; color: #2d5a2d; text-align: center;">
+                            <strong>🆓 FREE Roadside Parking</strong>
+                        </div>
+                    `;
+                    slotList.appendChild(slotItem);
+                });
+            }
+
+            /**
+             * Load fallback data if API fails
+             */
+            loadFallbackData() {
+                const fallbackData = {
+                    "Sample Street - Slot 1": {
+                        "location": [20.2961, 85.8245],
+                        "status": "available",
+                        "type": "street",
+                        "area": "Sample Street",
+                        "capacity": 1
+                    }
+                };
+                this.loadStreetParkingData(fallbackData);
+            }
+
+            /**
+             * Start auto-refresh for real-time updates
+             */
+            startAutoRefresh() {
+                setInterval(() => {
+                    // Only refresh if user location is set
+                    if (this.userLocation) {
+                        this.fetchParkingData();
+                    }
+                }, 10000); // Refresh every 10 seconds
+            }
+        }
+
+        // Initialize the street parking demo when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.streetParkingDemo = new StreetParkingDemo();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Parking System Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Leaflet CSS for Odisha Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px;
+            padding: 30px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .nav-buttons {
+            margin-top: 20px;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            margin: 0 10px;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .odisha-map-container {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        
+        .map-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .parking-lot-card {
+            border-left: 5px solid #28a745;
+            transition: all 0.3s ease;
+        }
+        
+        .parking-lot-card.high-occupancy {
+            border-left-color: #dc3545;
+        }
+        
+        .parking-lot-card.medium-occupancy {
+            border-left-color: #ffc107;
+        }
+        
+        .occupancy-bar {
+            height: 10px;
+            border-radius: 5px;
+            background: #e9ecef;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .occupancy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+            transition: width 0.5s ease;
+        }
+        
+        .map-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .recommendation-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .recommendation-card .recommendation-score {
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .recommendation-card .badge {
+            font-size: 0.7em;
+        }
+        
+        .recommendation-card .alert-sm {
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+        
+        .location-input-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .location-input-section .form-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .location-input-section .form-control {
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            transition: all 0.3s ease;
+        }
+        
+        .location-input-section .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .location-input-section .btn {
+            border-radius: 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .location-input-section .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn-group .btn {
+            border-radius: 15px;
+            margin: 2px;
+            font-size: 0.8em;
+            padding: 4px 8px;
+        }
+        
+        .btn-group .btn:hover {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+        
+        .traffic-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            border: 2px solid #333;
+        }
+        
+        .traffic-light.green {
+            background-color: #28a745;
+        }
+        
+        .traffic-light.yellow {
+            background-color: #ffc107;
+        }
+        
+        .traffic-light.red {
+            background-color: #dc3545;
+        }
+        
+        .live-indicator {
+            width: 12px;
+            height: 12px;
+            background-color: #28a745;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .btn-custom {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <div class="header">
+                <h1><i class="fas fa-car"></i> AI-Powered Parking System</h1>
+                <p><span class="live-indicator"></span>Real-time Monitoring Dashboard</p>
+                <div class="nav-buttons">
+                    <a href="/" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="/odisha-map" class="nav-btn"><i class="fas fa-map"></i> Bhubaneswar Map</a>
+                    <a href="/street-parking-demo" class="nav-btn"><i class="fas fa-road"></i> Street Parking Demo</a>
+                </div>
+            </div>
+            
+            <!-- Odisha Map Overview -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stat-card">
+                        <h3><i class="fas fa-map-marked-alt"></i> Odisha State Overview</h3>
+                        <div class="map-info">
+                            <p><strong>Coverage Area:</strong> Complete state of Odisha, India</p>
+                            <p><strong>Geographic Bounds:</strong> Southwest [17.78, 81.37] to Northeast [22.73, 87.55]</p>
+                            <p><strong>Map Type:</strong> Non-interactive schematic view for system overview</p>
+                        </div>
+                        <div id="odisha-dashboard-map" class="odisha-map-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-parking"></i>
+                        </div>
+                        <h4 id="total-slots">-</h4>
+                        <p class="text-muted">Total Slots</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3 id="available-slots" style="font-size: 2.5rem; font-weight: bold; color: #28a745;">-</h3>
+                        <p class="text-muted">Available Slots</p>
+                        <small class="text-success">🟢 Ready to Park</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #e83e8c);">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <h4 id="occupied-slots">-</h4>
+                        <p class="text-muted">Occupied</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <h4 id="occupancy-rate">-</h4>
+                        <p class="text-muted">Occupancy Rate</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Available Parking Alert -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-success text-center" id="parking-alert" style="display: none;">
+                        <h4><i class="fas fa-car"></i> <span id="available-count">-</span> Parking Spots Available!</h4>
+                        <p class="mb-0">Find the best parking location using our AI recommendations below.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Information -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="stat-card text-center">
+                        <h3><i class="fas fa-info-circle"></i> System Information</h3>
+                        <p class="lead">This dashboard provides a high-level overview of the Odisha parking system.</p>
+                        <p>For detailed parking information, interactive maps, and real-time data, please visit the <strong>Odisha Map</strong> section.</p>
+                        <div class="mt-3">
+                            <a href="/odisha-map" class="btn btn-custom">
+                                <i class="fas fa-map"></i> View Interactive Odisha Map
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <button class="btn btn-custom me-3" onclick="simulateParking()">
+                        <i class="fas fa-car"></i> Simulate Vehicle Parking
+                    </button>
+                    <button class="btn btn-custom" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center mt-4 pt-3" style="border-top: 1px solid #dee2e6;">
+                <p class="text-muted">
+                    <i class="fas fa-clock"></i> Last updated: <span id="last-updated">-</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Leaflet JavaScript for Odisha Map -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    
+    <script src="/static/js/dashboard.js"></script>
+    
+    <!-- Odisha Dashboard Map Initialization -->
+    <script>
+        /**
+         * Odisha Dashboard Map - Non-interactive schematic view
+         * Shows the state of Odisha, India without parking markers or interactivity
+         */
+        
+        // Odisha state bounds: Southwest [17.78, 81.37] to Northeast [22.73, 87.55]
+        const ODISHA_BOUNDS = {
+            southwest: [17.78, 81.37],
+            northeast: [22.73, 87.55],
+            center: [20.25, 84.46] // Approximate center of Odisha
+        };
+        
+        // Initialize non-interactive Odisha map for dashboard
+        function initOdishaDashboardMap() {
+            // Create map centered on Odisha
+            const odishaMap = L.map('odisha-dashboard-map', {
+                center: ODISHA_BOUNDS.center,
+                zoom: 7,
+                zoomControl: false, // Disable zoom controls for non-interactive view
+                dragging: false,    // Disable dragging for non-interactive view
+                touchZoom: false,   // Disable touch zoom
+                doubleClickZoom: false, // Disable double-click zoom
+                scrollWheelZoom: false, // Disable scroll wheel zoom
+                boxZoom: false,     // Disable box zoom
+                keyboard: false,   // Disable keyboard navigation
+                zoomSnap: 0.5,     // Snap to half zoom levels
+                zoomDelta: 0.5,    // Zoom increment
+                wheelPxPerZoomLevel: 120 // Reduce wheel sensitivity
+            });
+            
+            // Set maximum bounds to restrict view to Odisha only
+            odishaMap.setMaxBounds([
+                ODISHA_BOUNDS.southwest,
+                ODISHA_BOUNDS.northeast
+            ]);
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors | Odisha State Coverage',
+                maxZoom: 12,
+                minZoom: 6
+            }).addTo(odishaMap);
+            
+            // Add Odisha state boundary (simplified polygon)
+            const odishaBoundary = L.polygon([
+                [22.73, 81.37], [22.73, 87.55], [17.78, 87.55], [17.78, 81.37]
+            ], {
+                color: '#667eea',
+                weight: 3,
+                opacity: 0.8,
+                fillColor: '#667eea',
+                fillOpacity: 0.1
+            }).addTo(odishaMap);
+            
+            // Add state label
+            L.marker([20.25, 84.46], {
+                icon: L.divIcon({
+                    className: 'odisha-state-label',
+                    html: '<div style="background: #667eea; color: white; padding: 8px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">ODISHA</div>',
+                    iconSize: [80, 30],
+                    iconAnchor: [40, 15]
+                })
+            }).addTo(odishaMap);
+            
+            // Add major cities markers (non-interactive)
+            const majorCities = [
+                { name: 'Bhubaneswar', coords: [20.2961, 85.8245], size: 'large' },
+                { name: 'Cuttack', coords: [20.4625, 85.8828], size: 'medium' },
+                { name: 'Sambalpur', coords: [21.4669, 83.9812], size: 'medium' },
+                { name: 'Puri', coords: [19.8135, 85.8312], size: 'small' },
+                { name: 'Rourkela', coords: [22.2604, 84.8536], size: 'medium' },
+                { name: 'Berhampur', coords: [19.3142, 84.7941], size: 'small' }
+            ];
+            
+            majorCities.forEach(city => {
+                const size = city.size === 'large' ? 8 : city.size === 'medium' ? 6 : 4;
+                const color = city.size === 'large' ? '#dc3545' : city.size === 'medium' ? '#ffc107' : '#28a745';
+                
+                L.circleMarker(city.coords, {
+                    radius: size,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(odishaMap);
+                
+                // Add city labels
+                L.marker(city.coords, {
+                    icon: L.divIcon({
+                        className: 'city-label',
+                        html: `<div style="background: rgba(255,255,255,0.9); color: #333; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">${city.name}</div>`,
+                        iconSize: [city.name.length * 6, 20],
+                        iconAnchor: [city.name.length * 3, 10]
+                    })
+                }).addTo(odishaMap);
+            });
+            
+            console.log('🗺️ Odisha Dashboard Map initialized (non-interactive)');
+        }
+        
+        // Initialize map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for the map container to be available
+            setTimeout(initOdishaDashboardMap, 100);
+        });
+    </script>
+</body>
+</html>
